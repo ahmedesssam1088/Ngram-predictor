@@ -74,29 +74,35 @@ def run_model():
 
     logger.info("Training complete!")
 def run_inference():
-    logger.info("Loading model for inference...")
+    try:
+        # Load settings
+        model_path = os.getenv("MODEL")
+        vocab_path = os.getenv("VOCAB")
+        
+        # Check if files exist before trying to load them
+        if not os.path.exists(model_path):
+            logger.error(f"Model file not found at {model_path}. Run --step model first!")
+            return
 
-    # 1. Setup classes
-    from src.model.ngram_model import NGramModel
-    norm = Normalizer()
-    model = NGramModel(n=int(os.getenv("NGRAM_ORDER", 4)))
+        # Initialize and Load
+        from src.model.ngram_model import NGramModel
+        norm = Normalizer()
+        model = NGramModel(n=int(os.getenv("NGRAM_ORDER", 4)))
+        model.load(model_path, vocab_path)
+        
+        predictor = Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
+        
+        print("\n--- Sherlock Holmes Predictor (Ready) ---")
+        while True:
+            user_text = input("Enter text (or 'quit'): ").strip()
+            if not user_text: continue
+            if user_text.lower() == 'quit': break
+                
+            results = predictor.predict(user_text)
+            print(f"Suggestions: {results}\n")
 
-    # 2. Load the data we saved in Step 2
-    model.load(os.getenv("MODEL"), os.getenv("VOCAB"))
-
-    # 3. Setup Predictor
-    predictor = Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
-
-    print("\n--- Sherlock Holmes Predictor ---")
-    print("Type a phrase and hit Enter. Type 'quit' to stop.\n")
-
-    while True:
-        user_text = input("Enter text: ")
-        if user_text.lower() == 'quit':
-            break
-
-        results = predictor.predict(user_text)
-        print(f"Suggestions: {results}\n")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during inference: {e}")
 def main():
     # 3. Set up the Command Line Interface (CLI)
     parser = argparse.ArgumentParser(description="N-Gram Next-Word Predictor CLI")
