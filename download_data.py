@@ -16,7 +16,7 @@ target_dir = "data/raw/train/"
 os.makedirs(target_dir, exist_ok=True)
 
 for name, book_id in books.items():
-    url = f"https://www.gutenberg.org/cache/epub/{book_id}/pg{book_id}.txt"
+    url = f"https://www.gutenberg.org/files/{book_id}/{book_id}-0.txt"
     print(f"Downloading {name}...")
     try:
         urllib.request.urlretrieve(url, os.path.join(target_dir, name))

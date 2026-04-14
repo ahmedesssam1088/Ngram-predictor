@@ -2,80 +2,89 @@ import streamlit as st
 import os
 import sys
 from dotenv import load_dotenv
-from st_keyup import st_keyup  # The "Magic" component for live typing
+from st_keyup import st_keyup
 
-# Path fix for src folder
+# Path fix
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.data_prep.normalizer import Normalizer
 from src.model.ngram_model import NGramModel
 from src.inference.predictor import Predictor
 
-# 1. Configuration & Load Env
-st.set_page_config(page_title="Sherlock Instant", page_icon="🕵️‍♂️")
+# 1. Config & Load
+st.set_page_config(page_title="N-Gram Predictor", page_icon="🕵️‍♂️")
 load_dotenv("config/.env")
 
-# 2. Resource Loader (Cached)
+# 2. Initialize Session State
+if "current_text" not in st.session_state:
+    st.session_state.current_text = ""
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0  # We use this to force-refresh the text box
+
+# 3. Resource Loader
 @st.cache_resource
 def load_engine():
-    try:
-        norm = Normalizer()
-        n_order = int(os.getenv("NGRAM_ORDER", 4))
-        model = NGramModel(n=n_order)
-        
-        model_path = os.getenv("MODEL")
-        vocab_path = os.getenv("VOCAB")
-        
-        if not os.path.exists(model_path):
-            return None
-            
+    norm = Normalizer()
+    model = NGramModel(n=int(os.getenv("NGRAM_ORDER", 4)))
+    model_path = os.getenv("MODEL")
+    vocab_path = os.getenv("VOCAB")
+    if os.path.exists(model_path):
         model.load(model_path, vocab_path)
         return Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
-    except Exception as e:
-        st.error(f"Error loading resources: {e}")
-        return None
+    return None
 
 predictor = load_engine()
 
-# 3. User Interface
-st.title("🕵️‍♂️ Sherlock Holmes Instant Predictor")
-st.markdown("Type and watch the suggestions update **instantly** without hitting Enter.")
+# --- Callback Function ---
+def handle_click(word):
+    # 1. Update the text
+    st.session_state.current_text += f"{word} "
+    # 2. Increment the key to force the text box to update its UI
+    st.session_state.input_key += 1
+
+# 4. UI Layout
+st.title("🕵️‍♂️ N-Gram Next-Word Predictor")
 
 if predictor is None:
-    st.warning("⚠️ Model files not found. Run `python main.py --step model` first.")
+    st.error("Model not found. Please train it first.")
 else:
-    # 4. The Key-Up Input (TRUE REAL-TIME)
+    # 5. The Input Box with Dynamic Key
+    # Changing the 'key' whenever a button is pressed forces a redraw
     user_input = st_keyup(
-        "Start typing your sentence:", 
-        key="live_input", 
+        "Type or click suggestions:", 
+        value=st.session_state.current_text,
+        key=f"live_input_{st.session_state.input_key}",
         placeholder="The adventure of "
     )
+    
+    # Keep the state in sync if the user types manually
+    st.session_state.current_text = user_input
 
-    # 5. Prediction Logic
+    # 6. Prediction Logic
     if user_input:
-        # We only predict if there is a trailing space (user finished a word)
         if user_input.endswith(" "):
-            # Call predictor (require_space=False because we checked it here)
             suggestions = predictor.predict(user_input, require_space=False)
             
             if suggestions:
-                st.write("### Next Word Suggestions:")
+                st.write("### Suggestions:")
                 cols = st.columns(len(suggestions))
                 for i, word in enumerate(suggestions):
                     with cols[i]:
-                        # Using buttons as visual suggestions
-                        st.button(word, key=f"btn_{word}_{i}")
+                        # Use the callback function
+                        st.button(
+                            word, 
+                            key=f"btn_{word}_{i}", 
+                            on_click=handle_click, 
+                            args=(word,)
+                        )
             else:
-                st.caption("_No specific match found in the Sherlock corpus._")
+                st.caption("_No predictions found._")
         else:
-            # Hint for the user while they are typing a word
-            st.caption("Press **Space** to see the next word...")
+            st.caption("Press **Space** to see predictions...")
 
-# Sidebar for metadata
+# Sidebar
 with st.sidebar:
-    st.header("Technical Specs")
-    st.write(f"**N-Gram Order:** {os.getenv('NGRAM_ORDER')}")
-    st.write(f"**Top-K Results:** {os.getenv('TOP_K')}")
-    if st.button("Clear App Cache"):
-        st.cache_resource.clear()
+    if st.button("Clear Everything"):
+        st.session_state.current_text = ""
+        st.session_state.input_key += 1
         st.rerun()

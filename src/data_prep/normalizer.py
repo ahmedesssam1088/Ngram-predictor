@@ -28,15 +28,14 @@ class Normalizer:
         return combined_text
 
     def strip_gutenberg(self, text):
-        start_pattern = re.compile(r'\*\*\* START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE)
-        end_pattern = re.compile(r'\*\*\* END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE)
-    
+        start_pattern = re.compile(r'\*\*\* START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE | re.DOTALL)
+        end_pattern = re.compile(r'\*\*\* END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE | re.DOTALL)
+
         start_match = start_pattern.search(text)
         end_match = end_pattern.search(text)
-
         start_idx = start_match.end() if start_match else 0
         end_idx = end_match.start() if end_match else len(text)
-        return text[start_idx:end_idx]
+        return text[start_idx:end_idx].strip()
 
     def lowercase(self, text):
         return text.lower()
@@ -72,8 +71,8 @@ class Normalizer:
     
         # 2. Lemmatize each word to its 'verb' root (pos='v')
         # We also use .lower() to ensure 'Walking' and 'walking' are the same
-        return [self.lemmatizer.lemmatize(token.lower(), pos='v') for token in tokens]
-
+        #return [self.lemmatizer.lemmatize(token.lower(), pos='v') for token in tokens]
+        return [token.lower() for token in tokens]
 
     def save(self, sentences, filepath):
         os.makedirs(os.path.dirname(filepath), exist_ok=True) 
@@ -101,30 +100,33 @@ def main():
         print("Error: The text loaded is empty. Check your .txt files.")
         return
 
-    
     # 4. Sentence Tokenize
     print("Splitting into sentences...")
     # This might take a few seconds on large books!
     sentences = norm.sentence_tokenize(raw_text)
-    
+
+
     # 5. Slice the first 100 sentences
     sample_sentences = sentences[:100]
+    #sample_sentences = sentences
     print(f"Processing a sample of {len(sample_sentences)} sentences...")
     
     # 6. Normalize and word-tokenize each sentence
     processed_sentences = []
     for sent in sample_sentences:
         cleaned_sent = norm.normalize(sent)
-        
         # Only tokenize and save if the sentence isn't blank after cleaning
         if cleaned_sent.strip(): 
             words = norm.word_tokenize(cleaned_sent)
             processed_sentences.append(words)
-            
+
     # 7. Save the sample
     print(f"Saving tokenized sample to {sample_out}...")
     norm.save(processed_sentences, sample_out)
     print("Done! Open 'data/processed/train_tokens_sample.txt' to check your results.")
+
+    #print("test case")
+    #print(norm.normalize("This is a test sentence, with numbers 123 and punctuation!. i. I'm ahMed. i love working"))
 
 if __name__ == "__main__":     
     main()
