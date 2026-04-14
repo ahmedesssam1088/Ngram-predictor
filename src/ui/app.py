@@ -4,8 +4,9 @@ import sys
 from dotenv import load_dotenv
 from st_keyup import st_keyup
 
-# Path fix
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Go UP two levels: from src/ui -> src -> root
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, root_path)
 
 from src.data_prep.normalizer import Normalizer
 from src.model.ngram_model import NGramModel
@@ -24,14 +25,23 @@ if "input_key" not in st.session_state:
 # 3. Resource Loader
 @st.cache_resource
 def load_engine():
-    norm = Normalizer()
-    model = NGramModel(n=int(os.getenv("NGRAM_ORDER", 4)))
-    model_path = os.getenv("MODEL")
-    vocab_path = os.getenv("VOCAB")
-    if os.path.exists(model_path):
-        model.load(model_path, vocab_path)
-        return Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
-    return None
+    """Load model and predictor once and cache them for performance."""
+    try:
+        norm = Normalizer()
+        n_order = int(os.getenv("NGRAM_ORDER", 4))
+        model = NGramModel(n=n_order)
+        
+        model_path = os.getenv("MODEL")
+        vocab_path = os.getenv("VOCAB")
+        
+        if os.path.exists(model_path):
+            model.load(model_path, vocab_path)
+            # FIX: Removed top_k from __init__ to match your updated class structure
+            return Predictor(model, norm) 
+        return None
+    except Exception as e:
+        st.error(f"Error initializing model: {e}")
+        return None
 
 predictor = load_engine()
 
@@ -63,7 +73,7 @@ else:
     # 6. Prediction Logic
     if user_input:
         if user_input.endswith(" "):
-            suggestions = predictor.predict(user_input, require_space=False)
+            suggestions = predictor.predict_next(user_input, k=3)
             
             if suggestions:
                 st.write("### Suggestions:")
@@ -84,7 +94,13 @@ else:
 
 # Sidebar
 with st.sidebar:
-    if st.button("Clear Everything"):
+    st.header("Model Settings")
+    st.write(f"**N-Gram Order:** {os.getenv('NGRAM_ORDER')}")
+    st.write(f"**Vocab Threshold:** {os.getenv('UNK_THRESHOLD')}")
+    
+    st.divider()
+    
+    if st.button("Clear Everything", use_container_width=True):
         st.session_state.current_text = ""
         st.session_state.input_key += 1
         st.rerun()

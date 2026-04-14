@@ -3,45 +3,38 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Predictor:
-    def __init__(self, model, normalizer, top_k=3):
+    """
+    Accepts a pre-loaded NGramModel and Normalizer via the constructor, 
+    normalizing input text, and returning the top-k predicted next words 
+    sorted by probability. Backoff lookup is delegated to NGramModel.lookup().
+    """
+
+    def __init__(self, model, normalizer):
+        """Accept a pre-loaded NGramModel and Normalizer instance. Do not load files here."""
         self.model = model
         self.normalizer = normalizer
-        self.top_k = top_k
 
-    def predict(self, user_input, require_space=False):
-        # Step 1: Handle the "Space Trigger" for Web UI
-        if require_space and not user_input.endswith(" "):
-            return []
+    def normalize(self, text):
+        """Call Normalizer.normalize(text); extract last NGRAM_ORDER - 1 words as context"""
+        clean_text = self.normalizer.normalize(text)
+        tokens = self.normalizer.word_tokenize(clean_text)
+        return tokens[-(self.model.n - 1):] if self.model.n > 1 else []
 
-        # Step 2: Clean and tokenize the input
-        clean_input = self.normalizer.normalize(user_input)
-        words = self.normalizer.word_tokenize(clean_input)
+    def map_oov(self, context):
+        """Replace out-of-vocabulary words with <UNK>"""
+        return [w if w in self.model.vocab else "<UNK>" for w in context]
 
-        if not words:
-            return []
-
-        # Step 3: Map OOV words to <UNK>
-        processed_words = [w if w in self.model.vocab else "<UNK>" for w in words]
-
-        # Step 4: Get context (N-1 words)
-        context_words = processed_words[-(self.model.n - 1):]
-
-        # Step 5: Stupid Backoff — try highest order first, down to unigram
-        for i in range(len(context_words) + 1):
-            current_context = " ".join(context_words[i:])
-            order = len(context_words[i:]) + 1  # context length + 1 for the target word
-            gram_key = f"{order}gram"
-
-            if order == 1:
-                # Unigram: model_data["1gram"] = {word: prob}, no context key needed
-                candidates = self.model.model_data.get("1gram", {})
-            else:
-                # N-gram: model_data["Ngram"] = {context: {word: prob}}
-                gram_dict = self.model.model_data.get(gram_key, {})
-                candidates = gram_dict.get(current_context, {})
-
-            if candidates:
-                sorted_res = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-                return [word for word, prob in sorted_res[:self.top_k]]
-
-        return []
+    def predict_next(self, text, k):
+        """Orchestrate normalize -> map_oov -> NGramModel.lookup() -> return top-k words"""
+        # 1. Get context
+        context = self.normalize(text)
+        
+        # 2. Handle OOV
+        safe_context = self.map_oov(context)
+        
+        # 3. Delegate Backoff to Model
+        predictions = self.model.lookup(safe_context)
+        
+        # 4. Sort and return top-k
+        sorted_predictions = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
+        return [word for word, prob in sorted_predictions[:k]]

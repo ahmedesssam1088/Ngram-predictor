@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import json
 
 # Imports from our modules
+#from inference import predictor
 from src.data_prep.normalizer import Normalizer
 from src.model.ngram_model import NGramModel
 from src.inference.predictor import Predictor
@@ -39,6 +40,7 @@ def run_dataprep():
     norm.save(processed_sentences, out_file)
     logger.info(f"Saved {len(processed_sentences)} sentences to {out_file}")
 
+
 def run_model():
     logger.info("Starting Model Training...")
     model = NGramModel(
@@ -47,8 +49,9 @@ def run_model():
     )
     token_file = os.getenv("TRAIN_TOKENS")
     model.build_vocab(token_file)
-    model.train(token_file)
-    model.save(os.getenv("MODEL"), os.getenv("VOCAB"))
+    model.build_counts_and_probabilities(token_file)
+    model.save_model(os.getenv("MODEL"))
+    model.save_vocab(os.getenv("VOCAB"))
     logger.info("Model Training Complete.")
 
 def run_inference():
@@ -65,7 +68,9 @@ def run_inference():
         return
         
     model.load(model_path, vocab_path)
-    predictor = Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
+    #predictor = Predictor(model, norm, top_k=int(os.getenv("TOP_K", 3)))
+    predictor = Predictor(model, norm)
+
     
     print("\n--- CLI Inference Mode ---")
     print("Type your phrase and hit Enter. Type 'quit' to exit.")
@@ -75,7 +80,9 @@ def run_inference():
             break
         
         # In CLI, we set require_space=False because the user hit Enter anyway
-        results = predictor.predict(user_text, require_space=False)
+        #results = predictor.predict(user_text, require_space=False)
+        # Note: Predictor takes k as a parameter now
+        results = predictor.predict_next(user_text, k=int(os.getenv("TOP_K", 3)))
         print(f"Suggestions: {results}")    
 
 # def run_evaluation():
@@ -108,10 +115,6 @@ def run_inference():
 #     evaluator = Evaluator(model, norm)
 #     evaluator.run(eval_tokens)
 def run_evaluation():
-    def save_jsonfile(data, filepath):
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f)
     norm  = Normalizer()
     model = NGramModel(n=int(os.getenv("NGRAM_ORDER", 4)))
     model.load(os.getenv("MODEL"), os.getenv("VOCAB"))
@@ -120,7 +123,7 @@ def run_evaluation():
     eval_tokens = os.getenv("EVAL_TOKENS")
 
     raw_text   = norm.load(eval_raw)
-    clean_text = norm.strip_gutenberg(raw_text)  # now safe — returns original if no markers
+    clean_text = norm.strip_gutenberg(raw_text)
     sentences  = norm.sentence_tokenize(clean_text)
 
     processed = []
@@ -130,8 +133,8 @@ def run_evaluation():
         if tokens:
             processed.append(tokens)
 
-    save_jsonfile(processed, eval_tokens)  # now writes valid JSON
-
+    # Save as plain text: one sentence per line, tokens space-separated
+    norm.save(processed, eval_tokens)
     evaluator = Evaluator(model, norm)
     evaluator.run(eval_tokens)
 

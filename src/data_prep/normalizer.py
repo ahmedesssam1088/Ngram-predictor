@@ -17,25 +17,34 @@ class Normalizer:
         self.lemmatizer = WordNetLemmatizer()
 
     def load(self, folder_path):
+        """Reads and combines all .txt files in a folder. Returns raw combined text."""
         combined_text = ""
         for filename in os.listdir(folder_path):
             if filename.endswith(".txt"):
                 filepath = os.path.join(folder_path, filename)
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    raw_content = f.read()
-                    clean_content = self.strip_gutenberg(raw_content)
-                    combined_text += clean_content + "\n"
+                    combined_text += f.read() + "\n"
         return combined_text
 
     def strip_gutenberg(self, text):
-        start_pattern = re.compile(r'\*\*\* START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE | re.DOTALL)
-        end_pattern = re.compile(r'\*\*\* END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*', re.IGNORECASE | re.DOTALL)
+        """
+        Extracts content between all START/END Gutenberg markers in the text.
+        Works correctly for a single file or multiple concatenated files.
+        If no markers are found, returns the original text unchanged.
+        """
+        pattern = re.compile(
+            r'\*\*\* START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*(.*?)\*\*\* END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*',
+            re.IGNORECASE | re.DOTALL
+        )
 
-        start_match = start_pattern.search(text)
-        end_match = end_pattern.search(text)
-        start_idx = start_match.end() if start_match else 0
-        end_idx = end_match.start() if end_match else len(text)
-        return text[start_idx:end_idx].strip()
+        matches = pattern.findall(text)
+
+        if not matches:
+            return text  # no markers found, return as-is
+
+        # matches is a list of tuples: (group1, content, group3)
+        # group2 (index 1) is the actual book content between the markers
+        return "\n".join(match[1].strip() for match in matches)
 
     def lowercase(self, text):
         return text.lower()
@@ -99,7 +108,8 @@ def main():
     if not raw_text:
         print("Error: The text loaded is empty. Check your .txt files.")
         return
-
+    
+    raw_text = norm.strip_gutenberg(raw_text)  # now safe — returns original if no markers
     # 4. Sentence Tokenize
     print("Splitting into sentences...")
     # This might take a few seconds on large books!

@@ -34,7 +34,7 @@ class Evaluator:
 
         try:
             with open(eval_file, 'r', encoding='utf-8') as f:
-                sentences = json.load(f)  # expects a list of token lists
+                sentences = [line.strip().split() for line in f if line.strip()]
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load eval file: {e}")
             return 0, 0, 0
