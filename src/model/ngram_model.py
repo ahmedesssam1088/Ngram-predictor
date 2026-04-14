@@ -1,7 +1,7 @@
 import json
 import logging
 from collections import defaultdict
-
+import os
 logger = logging.getLogger(__name__)
 
 class NGramModel:
@@ -66,11 +66,15 @@ class NGramModel:
 
     def save_model(self, model_path):
         """Save structured probability tables to model.json"""
+        folder_path= os.path.dirname(model_path)
+        os.makedirs(folder_path, exist_ok=True)
         with open(model_path, 'w', encoding='utf-8') as f:
             # indent=4 makes the JSON readable so you can verify the 1-gram, 2-gram structure
             json.dump(self.model_data, f, indent=4)
 
     def save_vocab(self, vocab_path):
+        folder_path= os.path.dirname(vocab_path)
+        os.makedirs(folder_path, exist_ok=True)
         """Save vocabulary list to vocab.json"""
         with open(vocab_path, 'w', encoding='utf-8') as f:
             json.dump(list(self.vocab), f, indent=4)
