@@ -46,13 +46,17 @@ Follow these steps in sequence to process the data, train the model, and interac
     ```bash
     python main.py --step model
     ```
+3.  **Interactive CLI**: Start the interactive CLI prediction loop.
+    ```bash
+    python main.py --step inference
+    ```
 
-3.  **Model Evaluation**: Calculate perplexity on the unseen evaluation set.
+4.  **Model Evaluation**: Calculate perplexity on the unseen evaluation set.
     ```bash
     python main.py --step evaluate
     ```
 
-4.  **Interactive UI**: Launch the Streamlit-based "Smart Keyboard" interface.
+5.  **Interactive UI**: Launch the Streamlit-based "Smart Keyboard" interface.
     ```bash
     streamlit run src/ui/app.py
     ```
