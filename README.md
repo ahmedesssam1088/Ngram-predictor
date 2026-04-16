@@ -1,53 +1,64 @@
 ﻿# 🕵️‍♂️ Sherlock N-Gram Predictor
 
-A statistical language model built from scratch in Python to predict the next word in a sequence, specifically trained on the **Sherlock Holmes** canon. This project demonstrates a complete NLP pipeline: from raw text processing to Maximum Likelihood Estimation (MLE) probability modeling and real-time inference via a Streamlit UI.
+The Sherlock N-Gram Predictor is a statistical language model designed to predict the next word in a sequence by learning the linguistic patterns of Arthur Conan Doyle's Sherlock Holmes novels. Built using a 4-gram Markov chain approach with Maximum Likelihood Estimation (MLE), the system processes raw text, handles unseen words via a frequency-based vocabulary threshold, and utilizes "Stupid Backoff" logic to provide reliable suggestions even when specific high-order contexts have not been previously encountered.
 
-## 🚀 Milestone Achievements
+## 🛠️ Requirements
+* **Python Version**: 3.11+
+* **Dependencies**: All necessary libraries are listed in `requirements.txt`. Install them using the command provided in the Setup section.
 
-### 1. Advanced Data Normalization
-* **Gutenberg Stripping**: Custom regex logic to automatically identify and remove legal headers/footers from Project Gutenberg ebooks.
-* **Robust Tokenization**: Precise handling of punctuation, casing, and numerical data to ensure high-quality training tokens.
+## ⚙️ Setup
 
-### 2. Hierarchical N-Gram Model
-* **Structured Storage**: Implemented a multi-level JSON structure (`1-gram` through `4-gram`) for clear model inspection.
-* **Stupid Backoff Logic**: A dedicated `lookup()` method that serves as the single source of truth for backoff logic, falling back through n-gram orders until a match is found.
-* **Vocabulary Management**: Integrated `<UNK>` token handling based on frequency thresholds to manage Out-of-Vocabulary (OOV) words.
+1.  **Clone the Repository**:
+    ```bash
+    git clone <your-repository-url>
+    cd ngram-predictor
+    ```
 
-### 3. Interactive Inference UI
-* **Smart Keyboard**: Developed a Streamlit interface using `st-keyup` for instant word suggestions as the user types.
-* **OOV Mapping**: The predictor dynamically maps unknown user inputs to `<UNK>` to maintain stability during real-time sessions.
-
-### 4. Comprehensive Evaluation
-* **Perplexity Analysis**: Verified model "surprise" on unseen text (*The Valley of Fear*).
-* **Performance Metrics**: Achieved a perplexity of **~20.99**, successfully narrowing down language choices to ~21 possibilities per word.
-
-### 5. Verified Engineering
-* **Unit Testing**: 100% pass rate across **9 unit tests** using `pytest`, covering normalization, backoff logic, probability summation, and inference.
-
-## 🛠️ Installation & Setup
-
-1.  **Environment**:
+2.  **Create and Activate Anaconda Environment**:
     ```bash
     conda create -n ngram-env python=3.11
     conda activate ngram-env
+    ```
+
+3.  **Install Dependencies**:
+    ```bash
     pip install -r requirements.txt
     ```
 
-2.  **Configuration**:
-    Adjust variables in `config/.env` to tune `NGRAM_ORDER` or `UNK_THRESHOLD`.
+4.  **Populate Configuration**:
+    Create a file at `config/.env` and populate it with your specific project settings (N-gram order, thresholds, and file paths).
 
-## 📖 Execution Guide
+5.  **Download Raw Data**:
+    Ensure the raw `.txt` files for the Sherlock Holmes novels are placed in the following folders:
+    * Training files (Adventures, Memoirs, Return, Hound) -> `data/raw/train/`
+    * Evaluation file (Valley of Fear) -> `data/raw/eval/`
 
-| Goal | Command |
-| :--- | :--- |
-| **Prepare Data** | `python main.py --step dataprep` |
-| **Train Model** | `python main.py --step model` |
-| **Run Predication** | `python main.py --step inference` |
-| **Run Evaluation** | `python main.py --step evaluate` |
-| **Launch UI** | `streamlit run src/ui/app.py` |
-| **Run Tests** | `python -m pytest tests/` |
+## 🚀 Usage
+
+Follow these steps in sequence to process the data, train the model, and interact with the results:
+
+1.  **Data Preparation**: Clean and tokenize the raw text.
+    ```bash
+    python main.py --step dataprep
+    ```
+
+2.  **Model Training**: Build the vocabulary and probability tables.
+    ```bash
+    python main.py --step model
+    ```
+
+3.  **Model Evaluation**: Calculate perplexity on the unseen evaluation set.
+    ```bash
+    python main.py --step evaluate
+    ```
+
+4.  **Interactive UI**: Launch the Streamlit-based "Smart Keyboard" interface.
+    ```bash
+    streamlit run src/ui/app.py
+    ```
 
 ## 📂 Project Structure
+
 ```text
 ngram-predictor/
 ├── config/
